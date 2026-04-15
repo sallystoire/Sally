@@ -2,21 +2,24 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: Paname City - Discord Activity API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: kingdoms
+  - name: raids
+  - name: shop
+  - name: codes
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +27,428 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/discord/token:
+    post:
+      operationId: discordToken
+      tags: [auth]
+      summary: Exchange Discord OAuth code for JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscordTokenRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid code
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+
+  /kingdoms/me:
+    get:
+      operationId: getMyKingdom
+      tags: [kingdoms]
+      summary: Get my kingdom
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: My kingdom
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KingdomFull"
+
+  /kingdoms:
+    get:
+      operationId: listKingdoms
+      tags: [kingdoms]
+      summary: List all kingdoms (for raid selection)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of kingdoms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KingdomSummary"
+
+  /kingdoms/{discordId}:
+    get:
+      operationId: getKingdom
+      tags: [kingdoms]
+      summary: Get a specific kingdom
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: discordId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Kingdom
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KingdomFull"
+
+  /kingdoms/me/buildings/{buildingId}/upgrade:
+    post:
+      operationId: upgradeBuilding
+      tags: [kingdoms]
+      summary: Upgrade a building
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: buildingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Upgraded building
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Building"
+        "400":
+          description: Not enough resources or already upgrading
+
+  /raids:
+    post:
+      operationId: startRaid
+      tags: [raids]
+      summary: Start a raid against another kingdom
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RaidRequest"
+      responses:
+        "200":
+          description: Raid result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaidResult"
+        "400":
+          description: Cannot raid
+    get:
+      operationId: getMyRaids
+      tags: [raids]
+      summary: Get my raid history
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Raid history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Raid"
+
+  /shop:
+    get:
+      operationId: getShopItems
+      tags: [shop]
+      summary: Get all shop items
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Shop items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShopItem"
+
+  /shop/buy:
+    post:
+      operationId: buyShopItem
+      tags: [shop]
+      summary: Purchase a shop item
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyRequest"
+      responses:
+        "200":
+          description: Purchase result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuyResult"
+        "400":
+          description: Not enough gold
+
+  /codes/redeem:
+    post:
+      operationId: redeemCode
+      tags: [codes]
+      summary: Redeem a promo code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemRequest"
+      responses:
+        "200":
+          description: Redeem result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemResult"
+        "400":
+          description: Invalid or already used code
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    DiscordTokenRequest:
+      type: object
+      properties:
+        code:
+          type: string
+      required: [code]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required: [token, user]
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        discordId:
+          type: string
+        username:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        isSys:
+          type: boolean
+      required: [id, discordId, username, isSys]
+
+    Building:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        level:
+          type: integer
+        positionX:
+          type: integer
+        positionY:
+          type: integer
+        upgradeFinishAt:
+          type: string
+          nullable: true
+      required: [id, type, level, positionX, positionY]
+
+    KingdomFull:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        gold:
+          type: integer
+        wood:
+          type: integer
+        stone:
+          type: integer
+        food:
+          type: integer
+        trophies:
+          type: integer
+        buildings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Building"
+        owner:
+          $ref: "#/components/schemas/UserProfile"
+      required: [id, userId, name, gold, wood, stone, food, trophies, buildings, owner]
+
+    KingdomSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        trophies:
+          type: integer
+        owner:
+          $ref: "#/components/schemas/UserProfile"
+      required: [id, name, trophies, owner]
+
+    RaidRequest:
+      type: object
+      properties:
+        targetDiscordId:
+          type: string
+      required: [targetDiscordId]
+
+    RaidResult:
+      type: object
+      properties:
+        result:
+          type: string
+          enum: [win, lose]
+        goldLooted:
+          type: integer
+        woodLooted:
+          type: integer
+        stoneLooted:
+          type: integer
+        trophiesGained:
+          type: integer
+        message:
+          type: string
+      required: [result, goldLooted, woodLooted, stoneLooted, trophiesGained, message]
+
+    Raid:
+      type: object
+      properties:
+        id:
+          type: integer
+        result:
+          type: string
+        goldLooted:
+          type: integer
+        woodLooted:
+          type: integer
+        stoneLooted:
+          type: integer
+        createdAt:
+          type: string
+        isAttacker:
+          type: boolean
+        opponent:
+          $ref: "#/components/schemas/KingdomSummary"
+      required: [id, result, goldLooted, woodLooted, stoneLooted, createdAt, isAttacker, opponent]
+
+    ShopItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        costGold:
+          type: integer
+        effectType:
+          type: string
+        effectValue:
+          type: integer
+        icon:
+          type: string
+      required: [id, name, description, type, costGold, effectType, effectValue, icon]
+
+    BuyRequest:
+      type: object
+      properties:
+        itemId:
+          type: integer
+      required: [itemId]
+
+    BuyResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        kingdom:
+          $ref: "#/components/schemas/KingdomFull"
+      required: [success, message, kingdom]
+
+    RedeemRequest:
+      type: object
+      properties:
+        code:
+          type: string
+      required: [code]
+
+    RedeemResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        resourceType:
+          type: string
+        amount:
+          type: integer
+      required: [success, message, resourceType, amount]

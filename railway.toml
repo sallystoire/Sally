@@ -12,3 +12,8 @@ restartPolicyMaxRetries = 3
 DATABASE_URL = "${{Postgres.DATABASE_URL}}"
 NODE_ENV = "production"
 SESSION_SECRET = "${{secret(32)}}"
+# Les variables suivantes doivent être ajoutées manuellement dans Railway Variables :
+# DISCORD_CLIENT_ID     = ton Application ID
+# DISCORD_CLIENT_SECRET = ton Client Secret (onglet OAuth2)
+# DISCORD_BOT_TOKEN     = ton Bot Token
+# DISCORD_GUILD_ID      = 1489787998676713632
