@@ -11,3 +11,4 @@ restartPolicyMaxRetries = 3
 [deploy.envVars]
 DATABASE_URL = "${{Postgres.DATABASE_URL}}"
 NODE_ENV = "production"
+SESSION_SECRET = "${{secret(32)}}"
